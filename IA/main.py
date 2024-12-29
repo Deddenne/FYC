@@ -10,19 +10,16 @@ model = joblib.load("ddos_detector_model.pkl")
 
 # Configuration
 MONITORING_DURATION = 10  # Durée de la surveillance en secondes
-email_sender = "fyc.esgi.sima@gmail.com"
-email_password = 'wQud+YzE/gq7"OK9;,?0'
-email_recipient = "fyc.esgi.sima@gmail.com"
-smtp_server = "smtp.gmail.com"
+email_sender = "vmia@example.com"
+email_password = "yourpassword"
+email_recipient = "admin@example.com"
+smtp_server = "smtp.example.com"
 smtp_port = 587
-
-# Plage IP à surveiller (par exemple : 192.168.1.0/24)
-IP_RANGE = "192.168.10.0/24"  # Remplacez par la plage d'IP que vous voulez surveiller
 
 # Envoi d'une alerte par e-mail
 def send_email(alert_message):
     msg = MIMEText(alert_message)
-    msg["Subject"] = "ALERT: Potential DDoS Attack Detected"
+    msg["Subject"] = "ALERT: Potential Attack Detected"
     msg["From"] = email_sender
     msg["To"] = email_recipient
 
@@ -33,7 +30,7 @@ def send_email(alert_message):
     print("Alert email sent!")
 
 # Détection avec IA
-def detect_ddos_with_ai(ip_count, packet_rate):
+def detect_attack(ip_count, packet_rate):
     prediction = model.predict([[ip_count, packet_rate]])
     return prediction[0]  # 0 = normal, 1 = attaque
 
@@ -44,12 +41,9 @@ def monitor_traffic(duration):
 
     def packet_callback(packet):
         if IP in packet:
-            # Filtrer par plage d'IP
-            if packet[IP].src.startswith("192.168.1.") or packet[IP].dst.startswith("192.168.1."):
-                packet_list.append(packet[IP].src)
+            packet_list.append(packet[IP].src)
 
-    # Capture des paquets selon la plage IP spécifiée
-    sniff(filter=f"ip net {IP_RANGE}", prn=packet_callback, timeout=duration)
+    sniff(filter="ip", prn=packet_callback, timeout=duration)
     end_time = time.time()
 
     # Calcul des statistiques
@@ -66,10 +60,10 @@ def main():
         ip_count, packet_rate = monitor_traffic(MONITORING_DURATION)
 
         print(f"Stats: Unique IPs = {ip_count}, Packet Rate = {packet_rate:.2f}")
-        is_ddos = detect_ddos_with_ai(ip_count, packet_rate)
+        attack_type = detect_attack(ip_count, packet_rate)
 
-        if is_ddos == 1:
-            alert_message = f"ALERT: Potential DDoS detected! Unique IPs = {ip_count}, Packet Rate = {packet_rate:.2f}"
+        if attack_type == 1:
+            alert_message = f"ALERT: Potential attack detected! Unique IPs = {ip_count}, Packet Rate = {packet_rate:.2f}"
             print(alert_message)
             send_email(alert_message)
         else:
