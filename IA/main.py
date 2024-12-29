@@ -98,7 +98,7 @@ def main():
         if attack_type == 1:
             alert_message = f"ALERT: Potential attack detected!\n\nStats:\nUnique IPs = {ip_count}\nPacket Rate = {packet_rate:.2f} packets/sec\nTime: {current_time}"
             print(f"\n{alert_message}\n")
-            send_email(alert_message)
+            ########################################### send_email(alert_message)
         else:
             print("\nTraffic appears normal.\n")
 
