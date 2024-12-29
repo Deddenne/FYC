@@ -19,7 +19,7 @@ smtp_port = 587
 # Envoi d'une alerte par e-mail
 def send_email(alert_message):
     msg = MIMEText(alert_message)
-    msg["Subject"] = "ALERT: Potential DDoS Attack Detected"
+    msg["Subject"] = "ALERT: Potential Attack Detected"
     msg["From"] = email_sender
     msg["To"] = email_recipient
 
@@ -30,7 +30,7 @@ def send_email(alert_message):
     print("Alert email sent!")
 
 # Détection avec IA
-def detect_ddos_with_ai(ip_count, packet_rate):
+def detect_attack(ip_count, packet_rate):
     prediction = model.predict([[ip_count, packet_rate]])
     return prediction[0]  # 0 = normal, 1 = attaque
 
@@ -60,10 +60,10 @@ def main():
         ip_count, packet_rate = monitor_traffic(MONITORING_DURATION)
 
         print(f"Stats: Unique IPs = {ip_count}, Packet Rate = {packet_rate:.2f}")
-        is_ddos = detect_ddos_with_ai(ip_count, packet_rate)
+        attack_type = detect_attack(ip_count, packet_rate)
 
-        if is_ddos == 1:
-            alert_message = f"ALERT: Potential DDoS detected! Unique IPs = {ip_count}, Packet Rate = {packet_rate:.2f}"
+        if attack_type == 1:
+            alert_message = f"ALERT: Potential attack detected! Unique IPs = {ip_count}, Packet Rate = {packet_rate:.2f}"
             print(alert_message)
             send_email(alert_message)
         else:
