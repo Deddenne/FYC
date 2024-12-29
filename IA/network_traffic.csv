@@ -1,10 +1,21 @@
 ip_count,packet_rate,is_ddos
-5,10,0        # Trafic normal
-100,1000,1     # Attaque DDoS
-3,5,0          # Trafic normal
-50,600,1       # Attaque DDoS
-10,200,1       # Scan de ports (Port Scanning)
-2,3,0          # Trafic normal
-1000,3000,1    # Attaque par amplification (Amplification Attack)
-500,50,1       # Attaque SYN flood
-300,10,1       # Ping flood
+5,10,0          # Trafic normal
+100,1000,1      # Attaque DDoS
+3,5,0           # Trafic normal
+50,600,1        # Attaque DDoS
+10,200,1        # Scan de ports (Port Scanning)
+2,3,0           # Trafic normal
+1000,3000,1     # Attaque par amplification (Amplification Attack)
+500,50,1        # Attaque SYN flood
+300,10,1        # Ping flood
+20,50,0         # Trafic normal
+15,400,1        # Tentative de brute force
+200,1000,1      # Attaque DDoS (grande échelle)
+1,1,0           # Activité minimale
+5,500,1         # Trafic soudain suspect
+25,50,0         # Trafic normal (burst temporaire)
+100,120,1       # Attaque lente (Slowloris)
+10,15,0         # Trafic normal
+600,800,1       # Attaque UDP flood
+100,10,1        # Trafic anormal (petit flood)
+50,30,0         # Trafic normal avec plusieurs IP
