@@ -1,0 +1,5 @@
+ip_count,packet_rate,is_ddos
+5,10,0
+100,1000,1
+3,5,0
+50,600,1
