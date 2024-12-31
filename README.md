@@ -3,9 +3,7 @@
 <!-- PROJECT LOGO -->
 <br />
 <div align="center">
-  <a href="https://github.com/github_username/repo_name">
-    <img src="image/sima.png" alt="Logo" width="115" height="70">
-  </a>
+<img src="image/sima.png" alt="Logo" >
 
 <h3 align="center">Projet : Network Traffic Monitoring Report</h3>
 
@@ -159,18 +157,6 @@ Distributed under the project_license. See `LICENSE.txt` for more information.
 Your Name - [@twitter_handle](https://twitter.com/twitter_handle) - email@email_client.com
 
 Project Link: [https://github.com/github_username/repo_name](https://github.com/github_username/repo_name)
-
-<p align="right">(<a href="#readme-top">back to top</a>)</p>
-
-
-
-<!-- ACKNOWLEDGMENTS -->
-## Acknowledgments
-
-* []()
-* []()
-* []()
-
 
 
 <!-- MARKDOWN LINKS & IMAGES -->
