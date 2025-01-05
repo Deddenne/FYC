@@ -1,4 +1,4 @@
-from scapy.all import sniff, IP
+from scapy.all import sniff, IP, ARP, Ether, srp
 from collections import Counter
 import joblib
 import smtplib
@@ -61,13 +61,48 @@ def detect_attack(ip_count, packet_rate):
     prediction = model.predict([[ip_count, packet_rate]])
     return prediction[0]  # 0 = normal, 1 = attaque
 
-# Collecte des données réseau
-def monitor_traffic(duration):
+
+# Fonction pour récupérer toutes les IPs d'un sous-réseau spécifique
+def get_all_ips(subnet="192.168.1.0/24"):
+    """
+    Scanne le réseau sur toutes les interfaces disponibles et récupère toutes les IP connectées dans un sous-réseau.
+    """
+    all_ips = set()
+    
+    # Liste toutes les interfaces
+    interfaces = conf.ifaces
+    
+    for iface_name in interfaces.data.keys():
+        try:
+            # Création d'une requête ARP pour chaque interface
+            arp = ARP(pdst=subnet)  # Plage d'IP à scanner
+            ether = Ether(dst="ff:ff:ff:ff:ff:ff")
+            packet = ether / arp
+            result = srp(packet, timeout=2, iface=iface_name, verbose=False)[0]
+
+            # Récupération des IP des réponses
+            for _, received in result:
+                all_ips.add(received.psrc)
+        except Exception as e:
+            print(f"Erreur sur l'interface {iface_name}: {e}")
+    
+    return list(all_ips)
+
+
+# Collecte des données réseau sur une plage d'IP
+def monitor_traffic(duration, subnet="192.168.1.0/24"):
+    """
+    Surveille le trafic réseau pour une durée donnée et récupère les statistiques pour une plage d'IP spécifique.
+    """
     packet_list = []
     start_time = time.time()
 
+    # Récupérer toutes les IPs de la plage donnée
+    all_ips = get_all_ips(subnet)
+    ip_set = set(all_ips)  # Convertir en set pour vérification rapide
+
     def packet_callback(packet):
-        if IP in packet:
+        if IP in packet and packet[IP].src in ip_set:  # Filtrer uniquement les paquets venant des IPs dans la plage
             packet_list.append(packet[IP].src)
 
     sniff(filter="ip", prn=packet_callback, timeout=duration, iface=None)
@@ -77,8 +112,8 @@ def monitor_traffic(duration):
     ip_counter = Counter(packet_list)
     ip_count = len(ip_counter)  # Nombre unique d'IP
     packet_rate = len(packet_list) / (end_time - start_time)  # Taux de paquets par seconde
+    
     return ip_count, packet_rate, ip_counter
-
 
 
 
