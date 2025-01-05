@@ -3,33 +3,58 @@ from collections import Counter
 import joblib
 import smtplib
 from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
 import time
 from datetime import datetime
+from dotenv import load_dotenv
+import os
 
 # Charger le modèle IA
 model = joblib.load("ddos_detector_model.pkl")
 
 # Configuration
 MONITORING_DURATION = 10  # Durée de la surveillance en secondes
-email_sender = "vmia@example.com"
-email_password = "yourpassword"
-email_recipient = "admin@example.com"
-smtp_server = "smtp.example.com"
-smtp_port = 587
-html_file = "traffic_report.html"  # Nom du fichier HTML de sortie
 
-# Envoi d'une alerte par e-mail
-def send_email(alert_message):
-    msg = MIMEText(alert_message)
+
+# Charger les variables d'environnement depuis le fichier .env
+load_dotenv()
+
+# Paramètres de connexion
+smtp_server = os.getenv("SMTP_SERVER")
+smtp_port = os.getenv("SMTP_PORT")
+sender_email = os.getenv("EMAIL_SENDER")
+receiver_email = os.getenv("EMAIL_RECIPIENT")
+password = os.getenv("EMAIL_PASSWORD")
+
+# Génération du fichier HTML de sortie
+html_file = "traffic_report.html" 
+
+# Envoi d'une alerte par e-mail avec Outlook
+def send_email(alert_message, attacker_ip=None):
+    msg = MIMEMultipart()
     msg["Subject"] = "ALERT: Potential Attack Detected"
-    msg["From"] = email_sender
-    msg["To"] = email_recipient
+    msg["From"] = sender_email
+    msg["To"] = receiver_email
 
-    with smtplib.SMTP(smtp_server, smtp_port) as server:
-        server.starttls()
-        server.login(email_sender, email_password)
-        server.send_message(msg)
-    print("Alert email sent!")
+    # Corps du message
+    email_body = alert_message
+    if attacker_ip:
+        email_body += f"\n\nIP suspecte principale : {attacker_ip}"
+    msg.attach(MIMEText(email_body, "plain"))
+
+    # Envoi via le serveur SMTP d'Outlook
+    try:
+        server = smtplib.SMTP(smtp_server, smtp_port)
+        server.starttls()  # Sécurise la connexion
+        server.login(sender_email, password)
+        text = msg.as_string()
+        server.sendmail(sender_email, receiver_email, text)
+        print("E-mail envoyé avec succès !")
+    except Exception as e:
+        print(f"Une erreur est survenue : {e}")
+    finally:
+        server.quit()
+    print("Alert email sent via Outlook!")
 
 # Détection avec IA
 def detect_attack(ip_count, packet_rate):
@@ -56,7 +81,7 @@ def monitor_traffic(duration):
 
 # Écriture des résultats dans un fichier HTML
 def write_to_html(ip_count, packet_rate, attack_type, ip_counter, current_time):
-    attack_status = "Potential Attack Detected" if attack_type == 1 else "Normal"  # Mise à jour pour cohérence
+    attack_status = "Potential Attack Detected" if attack_type == 1 else "Normal"
     
     # Si le fichier n'existe pas, ajouter l'en-tête HTML
     try:
@@ -73,9 +98,6 @@ def write_to_html(ip_count, packet_rate, attack_type, ip_counter, current_time):
     ip_list = "<br>".join(ip_counter.keys())  # Afficher les IP uniques détectées
     with open(html_file, "a") as file:
         file.write(f"<tr><td>{current_time}</td><td>{ip_count}</td><td>{packet_rate:.2f}</td><td>{attack_status}</td><td>{ip_list}</td></tr>")
-    
-    # Pas de fermeture du tableau, elle se fait après la fin de la boucle de surveillance
-    # Le tableau sera fermé à la fin de l'exécution du script
 
 # Script principal
 def main():
@@ -96,9 +118,13 @@ def main():
         attack_type = detect_attack(ip_count, packet_rate)
 
         if attack_type == 1:
+            # Identification de l'IP la plus active (potentiellement l'attaquant)
+            attacker_ip = ip_counter.most_common(1)[0][0]
             alert_message = f"ALERT: Potential attack detected!\n\nStats:\nUnique IPs = {ip_count}\nPacket Rate = {packet_rate:.2f} packets/sec\nTime: {current_time}"
-            print(f"\n{alert_message}\n")
-            ########################################### send_email(alert_message)
+            print(f"\n{alert_message}\nIP suspecte principale : {attacker_ip}\n")
+            
+            # Envoi d'une alerte par email
+            send_email(alert_message, attacker_ip)
         else:
             print("\nTraffic appears normal.\n")
 
