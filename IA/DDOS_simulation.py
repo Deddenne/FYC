@@ -3,7 +3,7 @@ import random
 import time
 
 # Configuration de l'attaque
-target_ip = "192.168.1.81"  # Adresse cible (localhost pour un test local)
+target_ip = "192.168.1.81"  # Adresse cible
 target_port = 80         # Port cible
 flood_duration = 10      # Durée de l'attaque (secondes)
 

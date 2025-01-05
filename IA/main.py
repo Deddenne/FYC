@@ -8,13 +8,13 @@ import time
 from datetime import datetime
 from dotenv import load_dotenv
 import os
+import subprocess
 
 # Charger le modèle IA
 model = joblib.load("ddos_detector_model.pkl")
 
 # Configuration
-MONITORING_DURATION = 10  # Durée de la surveillance en secondes
-
+MONITORING_DURATION = 10 # Durée de la surveillance en secondes
 
 # Charger les variables d'environnement depuis le fichier .env
 load_dotenv()
@@ -99,6 +99,19 @@ def write_to_html(ip_count, packet_rate, attack_type, ip_counter, current_time):
     with open(html_file, "a") as file:
         file.write(f"<tr><td>{current_time}</td><td>{ip_count}</td><td>{packet_rate:.2f}</td><td>{attack_status}</td><td>{ip_list}</td></tr>")
 
+
+# block ip
+def add_iptables_rule(block_ip):
+    try:
+        # Commande iptables pour bloquer une IP
+        cmd = ["sudo", "iptables", "-A", "INPUT", "-s", block_ip, "-j", "DROP"]
+        result = subprocess.run(cmd, capture_output=True, text=True, check=True)
+        return f"Règle ajoutée avec succès pour bloquer : {block_ip}"
+    except subprocess.CalledProcessError as e:
+        return f"Erreur lors de l'ajout de la règle : {e.stderr}"
+
+
+
 # Script principal
 def main():
     print("Starting network monitoring with AI...\n")
@@ -124,6 +137,8 @@ def main():
             print(f"\n{alert_message}\nIP suspecte principale : {attacker_ip}\n")
             
             # Envoi d'une alerte par email
+            # add fonction auto block
+            add_iptables_rule(attacker_ip)
             send_email(alert_message, attacker_ip)
         else:
             print("\nTraffic appears normal.\n")
