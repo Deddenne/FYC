@@ -1,5 +1,5 @@
 from scapy.all import sniff, IP, ARP, Ether, srp
-from collections import Counter
+from collections import Counter, defaultdict
 import joblib
 import smtplib
 from email.mime.text import MIMEText
@@ -9,6 +9,7 @@ from datetime import datetime
 from dotenv import load_dotenv
 import os
 import subprocess
+from scapy.config import conf
 
 # Charger le modèle IA
 model = joblib.load("ddos_detector_model.pkl")
