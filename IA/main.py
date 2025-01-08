@@ -81,7 +81,6 @@ def monitor_traffic(duration):
 
 
 
-
 # Écriture des résultats dans un fichier HTML
 def write_to_html(ip_count, packet_rate, attack_type, ip_counter, current_time):
     attack_status = "Potential Attack Detected" if attack_type == 1 else "Normal"
