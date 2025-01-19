@@ -9,6 +9,7 @@ from datetime import datetime
 from dotenv import load_dotenv
 import os
 import subprocess
+from jinja2 import Template
 
 # Charger le modèle IA
 model = joblib.load("ddos_detector_model.pkl")
@@ -30,17 +31,30 @@ password = os.getenv("EMAIL_PASSWORD")
 html_file = "traffic_report.html" 
 
 # Envoi d'une alerte par e-mail avec Outlook
-def send_email(alert_message, attacker_ip=None):
+def send_email(alert_message, attacker_ip=None, html_file='report.html'):
+    # Lire le contenu HTML de report.html
+    try:
+        with open(html_file, 'r') as file:
+            html_content = file.read()
+    except FileNotFoundError:
+        print(f"Erreur : Le fichier {html_file} n'a pas été trouvé.")
+        return
+
+    # Remplacer les placeholders dans le contenu HTML
+    html_content = html_content.replace('{alert_message}', alert_message)
+    if attacker_ip:
+        html_content = html_content.replace('{attacker_ip}', attacker_ip)
+    else:
+        html_content = html_content.replace('{attacker_ip}', 'N/A')  # Valeur par défaut si aucune IP n'est fournie
+
+    # Préparer le message e-mail
     msg = MIMEMultipart()
     msg["Subject"] = "ALERT: Potential Attack Detected"
     msg["From"] = sender_email
     msg["To"] = receiver_email
 
-    # Corps du message
-    email_body = alert_message
-    if attacker_ip:
-        email_body += f"\n\nIP suspecte principale : {attacker_ip}"
-    msg.attach(MIMEText(email_body, "plain"))
+    # Corps du message avec HTML
+    msg.attach(MIMEText(html_content, "html"))
 
     # Envoi via le serveur SMTP d'Outlook
     try:
@@ -54,6 +68,7 @@ def send_email(alert_message, attacker_ip=None):
         print(f"Une erreur est survenue : {e}")
     finally:
         server.quit()
+
     print("Alert email sent via Outlook!")
 
 # Détection avec IA
@@ -62,60 +77,84 @@ def detect_attack(ip_count, packet_rate):
     return prediction[0]  # 0 = normal, 1 = attaque
 
 # Collecte des données réseau
-def monitor_traffic(duration):
-    packet_list = []
+def monitor_traffic(duration,interface="ens33"):
     start_time = time.time()
-
+    packets = []
+    
     def packet_callback(packet):
-        if IP in packet:
-            packet_list.append(packet[IP].src)
+        """Callback pour capturer les paquets IP."""
+        if packet.haslayer("IP"):
+            packets.append(packet["IP"].src)
+    
+    # Capture les paquets sur l'interface réseau
+    sniff(iface=interface, prn=packet_callback, timeout=duration, store=False)
+    
+    # Calcul des métriques
+    elapsed_time = time.time() - start_time
+    ip_counter = Counter(packets)
+    ip_count = len(ip_counter)  # Nombre d'IPs uniques
+    packet_rate = len(packets) / elapsed_time if elapsed_time > 0 else 0  # Taux de paquets par seconde
 
-    sniff(filter="ip", prn=packet_callback, timeout=duration, iface=None)
-    end_time = time.time()
-
-    # Calcul des statistiques
-    ip_counter = Counter(packet_list)
-    ip_count = len(ip_counter)  # Nombre unique d'IP
-    packet_rate = len(packet_list) / (end_time - start_time)  # Taux de paquets par seconde
     return ip_count, packet_rate, ip_counter
 
 
-
 # Écriture des résultats dans un fichier HTML
-def write_to_html(ip_count, packet_rate, attack_type, ip_counter, current_time):
+def write_to_html(ip_count, packet_rate, attack_type, ip_counter, current_time, html_file='report.html', template_file='template.html'):
     attack_status = "Potential Attack Detected" if attack_type == 1 else "Normal"
+    alert_message = f"Network traffic report for {current_time}. Attack status: {attack_status}."
     
-    # Si le fichier n'existe pas, ajouter l'en-tête HTML
-    try:
-        with open(html_file, "r") as file:
-            pass
-    except FileNotFoundError:
-        with open(html_file, "w") as file:
-            file.write("<html><head><title>Traffic Monitoring Report</title>")
-            file.write("<style>table {width: 100%; border-collapse: collapse;} th, td {padding: 8px; text-align: left; border: 1px solid #ddd;} th {background-color: #f2f2f2;}</style></head><body>")
-            file.write("<h1>Network Traffic Monitoring Report</h1>")
-            file.write("<table><tr><th>Date & Time</th><th>Unique IPs</th><th>Packet Rate (packets/sec)</th><th>Status</th><th>IP Addresses</th></tr>")
-    
-    # Ajouter les résultats de la surveillance sous forme de ligne dans le tableau
-    ip_list = "<br>".join(ip_counter.keys())  # Afficher les IP uniques détectées
-    with open(html_file, "a") as file:
-        file.write(f"<tr><td>{current_time}</td><td>{ip_count}</td><td>{packet_rate:.2f}</td><td>{attack_status}</td><td>{ip_list}</td></tr>")
+    # Trouver l'IP principale (la première IP suspecte dans l'IP Counter)
+    attacker_ip = next(iter(ip_counter), 'N/A')
 
+    try:
+        # Lire le template et remplir les données
+        with open(template_file, 'r') as template_file:
+            template_content = template_file.read()
+            template = Template(template_content)
+            # Si le fichier HTML existe déjà, on récupère son contenu
+            try:
+                with open(html_file, 'r') as file:
+                    existing_content = file.read()
+                # Remplacer les placeholders dans le template
+                new_content = existing_content.replace('{alert_message}', alert_message).replace('{attacker_ip}', attacker_ip)
+            except FileNotFoundError:
+                # Si le fichier n'existe pas, créer un nouveau contenu avec le template
+                new_content = template.render(alert_message=alert_message, attacker_ip=attacker_ip)
+
+        with open(html_file, 'w') as file:
+            file.write(new_content)
+
+    except Exception as e:
+        # Si une erreur survient (par exemple, fichier template non trouvé), utiliser le code de base
+        with open(html_file, "a") as file:
+            attack_status = "Potential Attack Detected" if attack_type == 1 else "Normal"
+            ip_list = "<br>".join(ip_counter.keys())
+            file.write(f"<tr><td>{current_time}</td><td>{ip_count}</td><td>{packet_rate:.2f}</td><td>{attack_status}</td><td>{ip_list}</td></tr>")
 
 # block ip
 def add_iptables_rule(block_ip):
     try:
-        # Commande iptables pour bloquer une IP
-        cmd = ["sudo", "iptables", "-A", "INPUT", "-s", block_ip, "-j", "DROP"]
-        result = subprocess.run(cmd, capture_output=True, text=True, check=True)
-        return f"Règle ajoutée avec succès pour bloquer : {block_ip}"
+        # Bloquer tout le trafic venant de l'IP
+        cmd_block_input = ["sudo", "iptables", "-A", "INPUT", "-s", block_ip, "-j", "DROP"]
+        cmd_block_forward = ["sudo", "iptables", "-A", "FORWARD", "-s", block_ip, "-j", "DROP"]
+
+        # Supprimer les connexions établies existantes (optionnel mais recommandé pour une réponse immédiate)
+        cmd_clear_conntrack = ["sudo", "conntrack", "-D", "-s", block_ip]
+
+        # Appliquer les règles
+        subprocess.run(cmd_block_input, capture_output=True, text=True, check=True)
+        subprocess.run(cmd_block_forward, capture_output=True, text=True, check=True)
+        subprocess.run(cmd_clear_conntrack, capture_output=True, text=True, check=True)
+
+        return f"Tout le trafic de l'IP {block_ip} est maintenant bloqué."
     except subprocess.CalledProcessError as e:
-        return f"Erreur lors de l'ajout de la règle : {e.stderr}"
+        return f"Erreur lors de l'ajout des règles : {e.stderr}"
 
 
 
 # Script principal
 def main():
+    blocked=[]
     print("Starting network monitoring with AI...\n")
     while True:
         current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -137,11 +176,12 @@ def main():
             attacker_ip = ip_counter.most_common(1)[0][0]
             alert_message = f"ALERT: Potential attack detected!\n\nStats:\nUnique IPs = {ip_count}\nPacket Rate = {packet_rate:.2f} packets/sec\nTime: {current_time}"
             print(f"\n{alert_message}\nIP suspecte principale : {attacker_ip}\n")
-            
-            # Envoi d'une alerte par email
-            # add fonction auto block
-            add_iptables_rule(attacker_ip)
-            send_email(alert_message, attacker_ip)
+            if attacker_ip not in blocked:
+                blocked.append(attacker_ip)
+                print(add_iptables_rule(attacker_ip))
+                send_email(alert_message, attacker_ip)
+            else:
+                print(f"IP {attacker_ip} already blocked.")
         else:
             print("\nTraffic appears normal.\n")
 

